@@ -1,5 +1,16 @@
 {
     "require": {
-        "thecodingcompany/php-mastodon": "^1.0"
-    }
+        "mrbellek/php-mastodon": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mastobot\\": "./"
+        }
+    },
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/mrbellek/MastodonOAuthPHP.git"
+        }
+    ]
 }

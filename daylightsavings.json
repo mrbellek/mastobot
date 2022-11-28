@@ -1,0 +1,19 @@
+{
+    "source": "json",
+    "format": "Daylight Savings Time :action :time in :countries. #DST",
+    "tweet_vars": {
+        "0": {
+            "var": ":action",
+            "value": "event"
+        },
+        "1": {
+            "var": ":time",
+            "value": "delay"
+        },
+        "2": {
+            "var": ":countries",
+            "value": "countries",
+            "truncate": true
+        }
+    }
+}

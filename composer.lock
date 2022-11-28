@@ -4,62 +4,25 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f5848aba53d2ae6b6564951c414edbcc",
+    "content-hash": "45cf12d7ed5df67982f8130f0aac2a3d",
     "packages": [
         {
-            "name": "thecodingcompany/php-mastodon",
-            "version": "v1.0.5",
+            "name": "mrbellek/php-mastodon",
+            "version": "dev-master",
             "source": {
                 "type": "git",
-                "url": "https://github.com/TheCodingCompany/MastodonOAuthPHP.git",
-                "reference": "9c3f68d086e31faab0e7142a589b04a6e9068eb0"
+                "url": "git@github.com:mrbellek/MastodonOAuthPHP",
+                "reference": "master"
             },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/TheCodingCompany/MastodonOAuthPHP/zipball/9c3f68d086e31faab0e7142a589b04a6e9068eb0",
-                "reference": "9c3f68d086e31faab0e7142a589b04a6e9068eb0",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.6.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "theCodingCompany\\": "theCodingCompany/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Victor Angelier",
-                    "email": "vangelier@hotmail.com",
-                    "homepage": "https://www.thecodingcompany.se",
-                    "role": "Founder"
-                }
-            ],
-            "description": "Mastodon PHP library oAuth and API",
-            "homepage": "https://github.com/TheCodingCompany/MastodonOAuthPHP",
-            "keywords": [
-                "api",
-                "mastodon",
-                "oauth",
-                "php"
-            ],
-            "support": {
-                "issues": "https://github.com/TheCodingCompany/MastodonOAuthPHP/issues",
-                "source": "https://github.com/TheCodingCompany/MastodonOAuthPHP/tree/master"
-            },
-            "time": "2017-04-26T18:49:38+00:00"
+            "type": "library"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "mrbellek/php-mastodon": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],
