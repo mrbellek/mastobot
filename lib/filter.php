@@ -13,21 +13,25 @@ use Mastobot\Lib\Base;
  */
 class Filter extends Base
 {
-    private $aSearchFilters = [];
-    private $aUsernameFilters = [];
-    private $aDiceValues = [];
+    private $searchFilters = [];
+    private $usernameFilters = [];
+    private $diceValues = [];
 
     //hardcoded search filters
-    private $aDefaultFilters = [
-        '"@',   //quote (instead of retweet)
-        'ô@',   //smart quote  (chr(147)
+    private $defaultFilters = [
+        //quote (instead of retweet)
+        '"@',
+         //smart quote  (chr(147)
+        'ô@',
         '@',
-        'â@',//mangled smart quote
-        '“@',  i //more smart quote “
+        //mangled smart quote
+        'â@',
+        //more smart quote “
+        '“@',
     ];
 
     //default probability values
-    private $aDefaultDiceValues = [
+    private $defaultDiceValues = [
         'media'     => 1.0,
         'urls'      => 0.8,
         'mentions'  => 0.5,
@@ -39,12 +43,12 @@ class Filter extends Base
      */
     public function setFilters(): self
     {
-        if ($aFilters = $this->config->get('filters')) {
-            $this->aSearchFilters   = array_merge($this->aDefaultFilters, (!empty($aFilters->tweet) ? $aFilters->tweet : array()));
-            $this->aUsernameFilters = array_merge(['@' . $this->config->get('sUsername')], (!empty($aFilters->username) ? $aFilters->username : []));
+        if ($filters = $this->config->get('filters')) {
+            $this->searchFilters   = array_merge($this->defaultFilters, (!empty($filters->tweet) ? $filters->tweet : []));
+            $this->usernameFilters = array_merge(['@' . $this->config->get('sUsername')], (!empty($filters->username) ? $filters->username : []));
         }
-        if ($aDiceValues = $this->config->get('dice_values')) {
-            $this->aDiceValues      = array_merge($this->aDefaultDiceValues, (array) $aDiceValues);
+        if ($diceValues = $this->config->get('dice_values')) {
+            $this->diceValues      = array_merge($this->defaultDiceValues, (array) $diceValues);
         }
 
         return $this;
@@ -53,9 +57,9 @@ class Filter extends Base
     /**
      * Apply filters to tweets, return remaining tweets
      */
-    public function filter(array $aTweets): array
+    public function filter(array $tweets): array
     {
-        foreach ($aTweets as $i => $oTweet) {
+        foreach ($tweets as $i => $oTweet) {
 
             //replace shortened links
             $oTweet = $this->expandUrls($oTweet);
@@ -64,33 +68,31 @@ class Filter extends Base
                 !$this->applyUsernameFilters($oTweet) ||
                 !$this->rollDie($oTweet)) {
 
-                unset($aTweets[$i]);
+                unset($tweets[$i]);
             }
         }
 
-        return $aTweets;
+        return $tweets;
     }
 
     /**
      * Apply textual filters to tweet
      *
-     * @param object|string $oTweet
+     * @param object|string $tweet
      */
-    private function applyFilters($oTweet): bool
+    private function applyFilters($tweet): bool
     {
-        foreach ($this->aSearchFilters as $sFilter) {
-            if (is_object($oTweet)) {
-                if (strpos(strtolower($oTweet->text), $sFilter) !== false) {
-                    $this->logger->output('<b>Skipping tweet because it contains "%s"</b>: %s', $sFilter, str_replace("\n", ' ', $oTweet->text));
+        foreach ($this->searchFilters as $filter) {
+            if (is_object($tweet)) {
+                if (strpos(strtolower($tweet->text), $filter) !== false) {
+                    $this->logger->output('<b>Skipping tweet because it contains "%s"</b>: %s', $filter, str_replace("\n", ' ', $tweet->text));
 
                     return false;
                 }
-            } else {
-                if (strpos(strtolower($oTweet), $sFilter) !== false) {
-                    $this->logger->output('<b>Skipping tweet because it contains "%s"</b>: %s', $sFilter, str_replace("\n", ' ', $oTweet));
+            } elseif (strpos(strtolower($tweet), $filter) !== false) {
+                $this->logger->output('<b>Skipping tweet because it contains "%s"</b>: %s', $filter, str_replace("\n", ' ', $tweet));
 
-                    return false;
-                }
+                return false;
             }
         }
 
@@ -100,20 +102,19 @@ class Filter extends Base
     /**
      * Apply username filters to tweet
      *
-     * @param object $oTweet
-     *
+     * @param object $tweet
      * @return bool
      */
-    private function applyUsernameFilters($oTweet)
+    private function applyUsernameFilters($tweet)
     {
-        if (is_object($oTweet)) {
-            foreach ($this->aUsernameFilters as $sUsername) {
-                if (strpos(strtolower($oTweet->user->screen_name), $sUsername) !== false) {
-                    $this->logger->output('<b>Skipping tweet because username contains "%s"</b>: %s', $sUsername, $oTweet->user->screen_name);
+        if (is_object($tweet)) {
+            foreach ($this->usernameFilters as $username) {
+                if (strpos(strtolower($tweet->user->screen_name), $username) !== false) {
+                    $this->logger->output('<b>Skipping tweet because username contains "%s"</b>: %s', $username, $tweet->user->screen_name);
                     return false;
                 }
-                if (preg_match('/@\S*' . $sUsername . '/', $oTweet->text)) {
-                    $this->logger->output('<b>Skipping tweet because mentioned username contains "%s"</b>: %s', $sUsername, $oTweet->text);
+                if (preg_match('/@\S*' . $username . '/', $tweet->text)) {
+                    $this->logger->output('<b>Skipping tweet because mentioned username contains "%s"</b>: %s', $username, $tweet->text);
                     return false;
                 }
             }
@@ -125,37 +126,37 @@ class Filter extends Base
     /**
      * Apply probability values to tweet (more interesting tweets have more chance of passing
      *
-     * @param object $oTweet
+     * @param object $tweet
      */
-    private function rollDie($oTweet): bool
+    private function rollDie($tweet): bool
     {
-        if (!is_object($oTweet)) {
+        if (!is_object($tweet)) {
             return true;
         }
 
 		//regular tweets are better than mentions - medium probability
-		$lProbability = $this->aDiceValues['base'];
+		$probability = $this->diceValues['base'];
 
-		if (!empty($oTweet->entities->media) && count($oTweet->entities->media) > 0
-			|| strpos('instagram.com/p/', $oTweet->text) !== false
-			|| strpos('vine.co/v/', $oTweet->text) !== false) {
+		if (!empty($tweet->entities->media) && count($tweet->entities->media) > 0
+			|| strpos('instagram.com/p/', $tweet->text) !== false
+			|| strpos('vine.co/v/', $tweet->text) !== false) {
 
 			//photos/videos are usually funny - certain
-			$lProbability = $this->aDiceValues['media'];
+			$probability = $this->diceValues['media'];
 
-		} elseif (!empty($oTweet->entities->urls) && count($oTweet->entities->urls) > 0) {
+		} elseif (!empty($tweet->entities->urls) && count($tweet->entities->urls) > 0) {
 			//links are ok but can be porn - high probability
-			$lProbability = $this->aDiceValues['urls'];
+			$probability = $this->diceValues['urls'];
 
-		} elseif (strpos('@', $oTweet->text) === 0) {
+		} elseif (strpos('@', $tweet->text) === 0) {
 			//mentions tend to be 'remember that time' stories or insults - low probability
-			$lProbability = $this->aDiceValues['mentions'];
+			$probability = $this->diceValues['mentions'];
 		}
 
 		//compare probability (0.0 to 1.0) against random number
 		$random = mt_rand() / mt_getrandmax();
-		if ($random > $lProbability) {
-			$this->logger->output('<b>Skipping tweet because the dice said so</b>: %s', str_replace("\n", ' ', $oTweet->text));
+		if ($random > $probability) {
+			$this->logger->output('<b>Skipping tweet because the dice said so</b>: %s', str_replace("\n", ' ', $tweet->text));
 			return false;
 		}
 
@@ -165,18 +166,18 @@ class Filter extends Base
     /**
      * Replace shortened t.co urls in tweet with expanded urls
      *
-     * @param object $oTweet
+     * @param object $tweet
      * @return object
      */
-    private function expandUrls($oTweet)
+    private function expandUrls($tweet)
     {
 		//check for links/photos
-		if (is_object($oTweet) && strpos($oTweet->text, 'http://t.co') !== false) {
-            foreach($oTweet->entities->urls as $oUrl) {
-                $oTweet->text = str_replace($oUrl->url, $oUrl->expanded_url, $oTweet->text);
+		if (is_object($tweet) && strpos($tweet->text, 'https://t.co') !== false) {
+            foreach($tweet->entities->urls as $url) {
+                $tweet->text = str_replace($url->url, $url->expanded_url, $tweet->text);
             }
 		}
 
-		return $oTweet;
+		return $tweet;
     }
 }

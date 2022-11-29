@@ -24,7 +24,7 @@ class Rss extends Base
      */
     public function getFeed()
     {
-        $oFeed = $this->config->get('feed');
+        $feed = $this->config->get('feed');
 
         $hCurl = curl_init();
         curl_setopt_array($hCurl, [
@@ -34,96 +34,96 @@ class Rss extends Base
             CURLOPT_AUTOREFERER     => true,
             CURLOPT_CONNECTTIMEOUT  => 5,
             CURLOPT_TIMEOUT         => 5,
-            CURLOPT_URL             => $oFeed->url,
+            CURLOPT_URL             => $feed->url,
         ]);
 
-        $sRssFeedRaw = curl_exec($hCurl);
+        $rssFeedRaw = curl_exec($hCurl);
         curl_close($hCurl);
 
         //DEBUG
         /*if (!is_file('feed.json')) {
-            file_put_contents('feed.json', json_encode(json_decode($sRssFeedRaw), JSON_PRETTY_PRINT));
+            file_put_contents('feed.json', json_encode(json_decode($rssFeedRaw), JSON_PRETTY_PRINT));
         } else {
-            $sRssFeedRaw = file_get_contents('feed.json');
+            $rssFeedRaw = file_get_contents('feed.json');
         }*/
 
-        switch ($oFeed->format) {
+        switch ($feed->format) {
             case 'xml':
-                $oRssFeed = simplexml_load_string($sRssFeedRaw);
+                $rssFeed = simplexml_load_string($rssFeedRaw);
                 break;
             case 'json':
             default:
-                $oRssFeed = json_decode($sRssFeedRaw);
+                $rssFeed = json_decode($rssFeedRaw);
         }
 
         //trim object to relevant root node, if set
-        if (!empty($oFeed->rootnode)) {
-            $oNodes = $this->getRssNodeField($oRssFeed, $oFeed->rootnode);
+        if (!empty($feed->rootnode)) {
+            $nodes = $this->getRssNodeField($rssFeed, $feed->rootnode);
         } else {
-            $oNodes = $oRssFeed;
+            $nodes = $rssFeed;
         }
 
         //limit to 10 latest items
         //TODO: take this from a setting, this is a quick hack
-        if (count($oNodes) > 10) {
-            $oNodes = array_slice($oNodes, -10);
+        if (count($nodes) > 10) {
+            $nodes = array_slice($nodes, -10);
         }
         
         //truncate list of nodes to those with at least the max timestamp from last time
-        $sLastMaxTimestamp = $this->config->get('last_max_timestamp', 0);
-        if ($sLastMaxTimestamp) {
-            foreach ($oNodes as $key => $oNode) {
+        $lastMaxTimestamp = $this->config->get('last_max_timestamp', 0);
+        if ($lastMaxTimestamp) {
+            foreach ($nodes as $key => $node) {
 
                 //get value of timestamp field
-                $sTimestamp = $this->getRssNodeField($oNode, $this->config->get('timestamp_field'));
+                $timestamp = $this->getRssNodeField($node, $this->config->get('timestamp_field'));
 
                 //remove node from list if timestamp is older than newest timestamp from last run
-                if (is_numeric($sTimestamp) && $sTimestamp > 0 && $sTimestamp <= $sLastMaxTimestamp) {
-                    unset($oNodes[$key]);
+                if (is_numeric($timestamp) && $timestamp > 0 && $timestamp <= $lastMaxTimestamp) {
+                    unset($nodes[$key]);
                 }
             }
         }
 
         //get highest timestamp in list of nodes and save it
-        $sNewestTimestamp = 0;
-        if ($sTimestampField = $this->config->get('timestamp_field')) {
-            foreach ($oNodes as $oItem) {
+        $newestTimestamp = 0;
+        if ($timestampField = $this->config->get('timestamp_field')) {
+            foreach ($nodes as $item) {
 
                 //get value of timestamp field
-                $sTimestamp = $this->getRssNodeField($oItem, $sTimestampField);
+                $timestamp = $this->getRssNodeField($item, $timestampField);
 
                 //save highest value of timestamp
-                $sNewestTimestamp = (is_numeric($sTimestamp) && $sTimestamp > $sNewestTimestamp ? $sTimestamp : $sNewestTimestamp);
+                $newestTimestamp = (is_numeric($timestamp) && $timestamp > $newestTimestamp ? $timestamp : $newestTimestamp);
             }
 
             //save in settings
-            if ($sNewestTimestamp > 0) {
-                $this->config->set('last_max_timestamp', $sNewestTimestamp);
+            if ($newestTimestamp > 0) {
+                $this->config->set('last_max_timestamp', $newestTimestamp);
                 //$this->oConfig->writeConfig(); //DEBUG
             }
         }
 
-        return $oNodes;
+        return $nodes;
     }
 
     /**
      * Gets a subnode of node value from tree based on given 'node>subnode>etc' syntax arg
      *
-     * @param object $oNode
+     * @param object $node
      *
-     * @throws Exception
      * @return object
+     *@throws Exception
      */
-    private function getRssNodeField($oNode, string $sField)
+    private function getRssNodeField($node, string $field)
     {
-        foreach (explode('>', $sField) as $sName) {
-            if (isset($oNode->$sName)) {
-                $oNode = $oNode->$sName;
+        foreach (explode('>', $field) as $name) {
+            if (isset($node->$name)) {
+                $node = $node->$name;
             } else {
-                throw new Exception(sprintf('Rss->getRssNodeField: node does not have %s field (full field: %s', $sName, $sField));
+                throw new Exception(sprintf('Rss->getRssNodeField: node does not have %s field (full field: %s', $name, $field));
             }
         }
 
-        return $oNode;
+        return $node;
     }
 }

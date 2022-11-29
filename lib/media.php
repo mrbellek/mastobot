@@ -26,43 +26,41 @@ class Media extends Base
      *
      * @return string|false
      */
-    public function upload(string $sFilePath)
+    public function upload(string $filepath)
     {
-        $this->logger->output(sprintf('Reading file %s..', $sFilePath));
+        $this->logger->output(sprintf('Reading file %s..', $filepath));
 
-        if (strpos($sFilePath, 'http') === 0) {
+        if (strpos($filepath, 'http') === 0) {
             //url, so download and store temp file
             $this->logger->output('- is URL, downloading..');
-            $sBinary = file_get_contents($sFilePath);
-            if ($sBinary) {
-                if (strlen($sBinary) > 5 * 1024 * 1024) {
-                    $this->logger->write(2, sprintf('Image is too large for tweet: %s (%d bytes)', $sFilePath, strlen($sBinary)));
-                    $this->logger->output('- Error: file is too large! %d bytes, max is 5MB', strlen($sBinary));
+            $fileBinary = file_get_contents($filepath);
+            if ($fileBinary) {
+                if (strlen($fileBinary) > 5 * 1024 * 1024) {
+                    $this->logger->write(2, sprintf('Image is too large for tweet: %s (%d bytes)', $filepath, strlen($fileBinary)));
+                    $this->logger->output('- Error: file is too large! %d bytes, max is 5MB', strlen($fileBinary));
                     return false;
                 } else {
-                    $sFilePath = getcwd() . '/tempimg.jpg';
-                    file_put_contents($sFilePath, $sBinary);
-                    $this->logger->output('- wrote %s bytes to disk', number_format(strlen($sBinary)));
+                    $filepath = getcwd() . '/tempimg.jpg';
+                    file_put_contents($filepath, $fileBinary);
+                    $this->logger->output('- wrote %s bytes to disk', number_format(strlen($fileBinary)));
                 }
             }
         }
 
-        $oRet = $this->oTwitter->upload('media/upload', ['media' => $sFilePath]);
-        if (isset($oRet->errors)) {
-            $this->logger->write(2, sprintf('Twitter API call failed: media/upload (%s)', $oRet->errors[0]->message), ['file' => $sFilePath]
-            );
-            $this->logger->output('- Error: ' . $oRet->errors[0]->message . ' (code ' . $oRet->errors[0]->code . ')');
+        $return = $this->mastodon->upload('media/upload', ['media' => $filepath]);
+        if (isset($return->errors)) {
+            $this->logger->write(2, sprintf('API call failed: media/upload (%s)', $return->errors[0]->message), ['file' => $filepath]);
+            $this->logger->output('- Error: ' . $return->errors[0]->message . ' (code ' . $return->errors[0]->code . ')');
 
             return false;
 
-        } elseif (isset($oRet->error)) {
-            $this->logger->write(2, sprintf('Twitter API call failed: media/upload(%s)', $oRet->error), ['file' => $sFilePath]
-            );
-            $this->logger->output(sprintf('- Error: %s', $oRet->error));
+        } elseif (isset($return->error)) {
+            $this->logger->write(2, sprintf('API call failed: media/upload(%s)', $return->error), ['file' => $filepath]);
+            $this->logger->output(sprintf('- Error: %s', $return->error));
         } else {
-            $this->logger->output('- Uploaded %s to attach to next tweet', $sFilePath);
+            $this->logger->output('- Uploaded %s to attach to next tweet', $filepath);
 
-            return $oRet->media_id_string;
+            return $return->media_id_string;
         }
 
         return false;
@@ -73,47 +71,47 @@ class Media extends Base
      *
      * @return string|false
      */
-    public function uploadFromUrl(string $sUrl, string $sType)
+    public function uploadFromUrl(string $url, string $type)
     {
         //albums can have a numeral if they have multiple pics, strip that out for here
-        if (preg_match('/album:\d/', $sType)) {
-            $sType = 'album';
+        if (preg_match('/album:\d/', $type)) {
+            $type = 'album';
         }
 
-        switch ($sType) {
+        switch ($type) {
             default:
             case 'image':
-                return $this->upload($sUrl);
+                return $this->upload($url);
 
             case 'gallery':
             case 'album':
-                return $this->uploadFromGallery($sUrl);
+                return $this->uploadFromGallery($url);
 
             case 'instagram':
-                return $this->uploadFromInstagram($sUrl);
+                return $this->uploadFromInstagram($url);
 
             case 'gif':
-                return $this->uploadVideoFromGfycat($sUrl);
+                return $this->uploadVideoFromGfycat($url);
         }
     }
 
     /**
      * Upload media to mastodon from imgur gallery page, return media ids if possible
      */
-    private function uploadFromGallery(string $sUrl): array
+    private function uploadFromGallery(string $url): array
     {
         //use the API
-        $aImageUrls = (new Imgur())->getFourAlbumImages($sUrl);
+        $imageUrls = (new Imgur())->getFourAlbumImages($url);
 
         //if we have at least one image, upload it to attach to tweet
-        $aMediaIds = [];
-        if ($aImageUrls) {
-            foreach ($aImageUrls as $sImage) {
-                $aMediaIds[] = $this->upload($sImage);
+        $mediaIds = [];
+        if ($imageUrls) {
+            foreach ($imageUrls as $imageUrl) {
+                $mediaIds[] = $this->upload($imageUrl);
             }
         }
 
-        return array_filter($aMediaIds);
+        return array_filter($mediaIds);
     }
 
     /**
@@ -129,30 +127,30 @@ class Media extends Base
 
         //fetch image from twitter meta tag
         libxml_use_internal_errors(true);
-        $oDocument = new DOMDocument();
-        $oDocument->preserveWhiteSpace = false;
-        $oDocument->loadHTML(file_get_contents($sUrl));
+        $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = false;
+        $dom->loadHTML(file_get_contents($sUrl));
 
-        $sImage = '';
-        $oXpath = new DOMXpath($oDocument);
-        $oMetaTags = $oXpath->query('//meta[@name="twitter:image:src"]');
-        foreach ($oMetaTags as $oTag) {
-            $sImage = $oTag->getAttribute('content');
+        $image = '';
+        $xpath = new DOMXpath($dom);
+        $metaTags = $xpath->query('//meta[@name="twitter:image:src"]');
+        foreach ($metaTags as $tag) {
+            $image = $tag->getAttribute('content');
             break;
         }
 
         //march 2016: imgur changed their meta tags
-        if (empty($sImage)) {
-            $oMetaTags = $oXpath->query('//meta[@name="twitter:image"]');
-            foreach ($oMetaTags as $oTag) {
-                $sImage = $oTag->getAttribute('content');
+        if (empty($image)) {
+            $metaTags = $xpath->query('//meta[@name="twitter:image"]');
+            foreach ($metaTags as $tag) {
+                $image = $tag->getAttribute('content');
                 break;
             }
         }
 
-        if (!empty($sImage)) {
+        if (!empty($image)) {
             //we want the page url truncated from the tweet, so use it as the index name
-            return $this->upload($sImage, $sUrl);
+            return $this->upload($image, $sUrl);
         }
 
         return false;
@@ -163,35 +161,35 @@ class Media extends Base
      *
      * @return string|false
      */
-    private function uploadFromInstagram(string $sUrl)
+    private function uploadFromInstagram(string $url)
     {
         //instagram implements og:image meta tag listing exact url of image
         //this works on both account pages (tag contains user avatar) and photo pages (tag contains photo url)
 
         //we want instagram photo urls to be truncated from the tweet, but not instagram account urls
-        if (preg_match('/instagram\.com\/p\//i', $sUrl)) {
+        if (preg_match('/instagram\.com\/p\//i', $url)) {
             //custom name equal to original url
-            $sName = $sUrl;
+            $name = $url;
         } else {
             //use url as index name
-            $sName = false;
+            $name = false;
         }
 
         //fetch image from twitter meta tag
         libxml_use_internal_errors(true);
-        $oDocument = new DOMDocument();
-        $oDocument->preserveWhiteSpace = false;
-        $oDocument->loadHTML(file_get_contents($sUrl));
+        $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = false;
+        $dom->loadHTML(file_get_contents($url));
 
-        $oXpath = new DOMXpath($oDocument);
-        $oMetaTags = $oXpath->query('//meta[@property="og:image"]');
-        foreach ($oMetaTags as $oTag) {
-            $sImage = $oTag->getAttribute('content');
+        $xpath = new DOMXpath($dom);
+        $metaTags = $xpath->query('//meta[@property="og:image"]');
+        foreach ($metaTags as $tag) {
+            $image = $tag->getAttribute('content');
             break;
         }
 
-        if (!empty($sImage)) {
-            return $this->upload($sImage, $sName);
+        if (!empty($image)) {
+            return $this->upload($image, $name);
         }
 
         return false;
@@ -200,21 +198,21 @@ class Media extends Base
     /**
      * Upload media to mastodon from gfycat, return media id if possible
      *
-     * @param string $sUrl
+     * @param string $url
      *
      * @return string|false
      */
-    public function uploadVideoFromGfycat(string $sUrl)
+    public function uploadVideoFromGfycat(string $url)
     {
         //construct json info url
-        $sJsonUrl = str_replace('gfycat.com/', 'api.gfycat.com/v1/gfycats/', $sUrl);
-        if ($sJsonUrl == $sUrl) {
+        $jsonUrl = str_replace('gfycat.com/', 'api.gfycat.com/v1/gfycats/', $url);
+        if ($jsonUrl == $url) {
             return false;
         }
 
-        $oGfycatInfo = @json_decode(file_get_contents($sJsonUrl));
-        if ($oGfycatInfo && !empty($oGfycatInfo->gfyItem->mp4Url)) {
-            return $this->uploadVideoToTwitter($oGfycatInfo->gfyItem->mp4Url, 'video/mp4');
+        $gfycatInfo = @json_decode(file_get_contents($jsonUrl));
+        if ($gfycatInfo && !empty($gfycatInfo->gfyItem->mp4Url)) {
+            return $this->uploadVideoToTwitter($gfycatInfo->gfyItem->mp4Url, 'video/mp4');
         }
 
         return false;
@@ -225,39 +223,39 @@ class Media extends Base
      *
      * @return string|false
      */
-    private function uploadVideoToTwitter(string $sFilePath, string $sType)
+    private function uploadVideoToTwitter(string $filepath, string $type)
     {
-        $this->logger->output(sprintf('Reading file %s..', $sFilePath));
+        $this->logger->output(sprintf('Reading file %s..', $filepath));
 
         //need to download and save the file since the library expects a local file
-        $sVideoBinary = file_get_contents($sFilePath);
-        if (strlen($sVideoBinary) < 15 * pow(1024, 2)) {
+        $videoBinary = file_get_contents($filepath);
+        if (strlen($videoBinary) < 15 * pow(1024, 2)) {
 
-            $this->logger->output('- Saving %s bytes to disk..', number_format(strlen($sVideoBinary)));
-            $sTempFilePath = getcwd() . '/video.mp4';
-            file_put_contents($sTempFilePath, $sVideoBinary);
+            $this->logger->output('- Saving %s bytes to disk..', number_format(strlen($videoBinary)));
+            $tempFilepath = getcwd() . '/video.mp4';
+            file_put_contents($tempFilepath, $videoBinary);
 
-            $this->logger->output('- Uploading to twitter (chunked)..');
-            $oRet = $this->oTwitter->upload('media/upload', ['media' => $sTempFilePath, 'media_type' => $sType], true);
-            if (isset($oRet->errors)) {
-                $this->logger->write(2, sprintf('Twitter API call failed: media/upload (%s, chunked)', $oRet->errors[0]->message), ['file' => $sFilePath]
+            $this->logger->output('- Uploading to mastodon(chunked)..');
+            $return = $this->mastodon->upload('media/upload', ['media' => $tempFilepath, 'media_type' => $type], true);
+            if (isset($return->errors)) {
+                $this->logger->write(2, sprintf('API call failed: media/upload (%s, chunked)', $return->errors[0]->message), ['file' => $filepath]
                 );
-                $this->logger->output('- Error: ' . $oRet->errors[0]->message . ' (code ' . $oRet->errors[0]->code . ')');
+                $this->logger->output('- Error: ' . $return->errors[0]->message . ' (code ' . $return->errors[0]->code . ')');
 
                 return false;
 
-            } elseif (isset($oRet->error)) {
-                $this->logger->write(2, sprintf('Twitter API call failed: media/upload (%s, chunked)', $oRet->error), ['file' => $sFilePath]
+            } elseif (isset($return->error)) {
+                $this->logger->write(2, sprintf('API call failed: media/upload (%s, chunked)', $return->error), ['file' => $filepath]
                 );
-                $this->logger->output(sprintf('- Error: %s', $oRet->error));
+                $this->logger->output(sprintf('- Error: %s', $return->error));
             } else {
-                $this->logger->output('- Uploaded video %s to attach to next tweet', $sFilePath);
+                $this->logger->output('- Uploaded video %s to attach to next tweet', $filepath);
 
-                return $oRet->media_id_string;
+                return $return->media_id_string;
             }
         } else {
-            $this->logger->write(2, sprintf('File is too large! File is %d bytes, max is 15MB (%s)', strlen($sVideoBinary), $sFilePath));
-            $this->logger->output('- File is too large! %d bytes, max is 15MB', strlen($sVideoBinary));
+            $this->logger->write(2, sprintf('File is too large! File is %d bytes, max is 15MB (%s)', strlen($videoBinary), $filepath));
+            $this->logger->output('- File is too large! %d bytes, max is 15MB', strlen($videoBinary));
         }
 
         return false;

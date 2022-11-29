@@ -10,7 +10,10 @@ use Mastobot\Lib\Database;
  */
 class Logger
 {
+    /** @var bool  */
     private $bInBrowser;
+    /** @var Database|null */
+    private $db;
 
     /**
      * Determine if we're in browser or CLI at start

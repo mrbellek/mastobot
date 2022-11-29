@@ -41,7 +41,10 @@ class Base
         $this->logger = new Logger();
     }
 
-    public function set(string $name, mixed $value): Base
+    /**
+     * @param mixed $value
+     */
+    public function set(string $name, $value): self
     {
         $this->$name = $value;
 

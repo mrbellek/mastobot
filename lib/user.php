@@ -7,13 +7,15 @@ use Mastobot\Lib\Base;
 
 class User extends Base
 {
-    public function get($sUsername)
+    public function get(string $username)
     {
-        return $this->oTwitter->get('users/show', ['screen_name' => $sUsername]);
+        throw new RuntimeException('User::get not supported by Mastodon');
+        //return $this->oTwitter->get('users/show', ['screen_name' => $username]);
     }
 
     private function getById($id)
     {
-        return $this->oTwitter->get('users/show', ['user_id' => $id]);
+        throw new RuntimeException('User::getById not supported by Mastodon');
+        //return $this->oTwitter->get('users/show', ['user_id' => $id]);
     }
 }
