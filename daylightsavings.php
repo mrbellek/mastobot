@@ -44,9 +44,7 @@ class DaylightSavings
         $posts = $this->checkDST();
         if (!empty($posts)) {
             $this->logger->output('Posting %d messages...', count($posts));
-            foreach ($posts as $post) {
-                (new Toot($this->config))->post($post);
-            }
+            (new Toot($this->config))->post($posts);
         }
 
         $this->logger->output('Done!');
@@ -58,6 +56,7 @@ class DaylightSavings
         $toots = [];
 
         $today = strtotime(gmdate('Y-m-d'));
+
         $delays = [
             'today' => 0,
             'tomorrow' => 24 * 3600,

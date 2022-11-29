@@ -29,7 +29,6 @@ class Toot extends Base
                 $sMediaIds = implode(',', $this->mediaIds);
                 $this->logger->output('Posting: [%dch] %s (with attachment)', strlen($toot), utf8_decode($toot));
                 $oRet = $this->mastodon->postStatus($toot);//'media_ids' => $sMediaIds]
-                );
             } else {
                 $this->logger->output('Posting: [%dch] %s', strlen($toot), utf8_decode($toot));
                 $oRet = $this->mastodon->postStatus($toot);
