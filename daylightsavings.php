@@ -5,7 +5,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/vendor/mrbellek/php-mastodon/autoload.php';
 require_once __DIR__ . '/daylightsavings.inc.php';
 
-use theCodingCompany\Mastodon;
 use Mastobot\Lib\Auth;
 use Mastobot\Lib\Config;
 use Mastobot\Lib\Database;
@@ -16,7 +15,6 @@ use Mastobot\Lib\Toot;
 class DaylightSavings
 {
     private $username = 'DaylightSavings';
-    private $mastodon;
     private $logger;
     private $config;
     private $db;
@@ -24,7 +22,6 @@ class DaylightSavings
     public function __construct()
     {
         $this->logger = new Logger();
-        $this->mastodon = new Mastodon('botsin.space');
     }
 
     public function run()
